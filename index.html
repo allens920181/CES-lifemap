@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>華神生活地圖</title>
+  <style>
+    :root{
+      --bg:#ffffff; --fg:#111111; --muted:#666666; --line:#e5e7eb;
+      --card:#f7f7f8; --radius:16px;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{margin:0; background:var(--bg); color:var(--fg);
+      font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans TC", "Helvetica Neue", Arial, "PingFang TC", "Microsoft JhengHei", sans-serif; line-height:1.6;}
+    .wrap{max-width:720px; margin:0 auto; padding:16px;}
+
+    /* Header */
+    .title{position:sticky; top:0; z-index:10; backdrop-filter:saturate(180%) blur(8px);
+      background:rgba(255,255,255,.85); border-bottom:1px solid var(--line);} 
+    .brand{max-width:720px; margin:0 auto; padding:14px 16px; display:flex; align-items:center; gap:10px}
+    .brand h1{font-size:20px; margin:0; font-weight:700}
+    .brand .sub{font-size:12px; color:var(--muted)}
+    .lang-toggle{margin-left:auto; display:flex; gap:8px; align-items:center}
+    .btn{border:1px solid var(--line); background:#fff; padding:6px 10px; border-radius:999px; font-size:12px; cursor:pointer}
+    .btn[aria-pressed="true"]{background:#f3f4f6}
+
+    /* Card/Accordion */
+    .section{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:6px; margin:12px 0}
+    details{border-radius:var(--radius); overflow:hidden; background:#fff; border:1px solid var(--line)}
+    details + details{margin-top:8px}
+    summary{list-style:none; cursor:pointer; padding:16px; display:flex; align-items:center; gap:12px}
+    summary::-webkit-details-marker{display:none}
+    .chev{margin-left:auto; transition:transform .2s ease}
+    details[open] .chev{transform:rotate(90deg)}
+    .sec-icon{width:28px; height:28px; display:grid; place-items:center; border-radius:8px; background:#f3f4f6; font-size:16px}
+    .sec-title{font-size:16px; font-weight:700}
+    .subs{border-top:1px solid var(--line); background:#fff}
+    .subitem{display:flex; align-items:center; justify-content:space-between; gap:12px; padding:14px 16px; border-top:1px dashed var(--line)}
+    .subitem:first-child{border-top:none}
+    .subname{font-size:15px}
+    .link{font-size:14px; color:var(--fg); padding:6px 10px; border:1px solid var(--line); border-radius:10px; text-decoration:none}
+    .link:hover{background:#f9fafb}
+    .placeholder{font-size:12px; color:var(--muted); border:1px dashed var(--line); padding:4px 8px; border-radius:10px}
+
+    .footer{margin:24px 0; font-size:12px; color:var(--muted); text-align:center}
+  </style>
+</head>
+<body>
+  <header class="title">
+    <div class="brand">
+      <div style="font-size:22px">🗺️</div>
+      <div>
+        <h1 id="site-title">華神生活地圖</h1>
+        <div class="sub" id="site-sub">點開分類查看子分類</div>
+      </div>
+      <div class="lang-toggle" role="group" aria-label="language switch">
+        <button id="btn-zh" class="btn" aria-pressed="true">中文</button>
+        <button id="btn-en" class="btn" aria-pressed="false">EN</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <div id="accordion" class="section"></div>
+    <div class="footer" id="footer-text">© 2025- 華神生活地圖</div>
+  </main>
+
+  <script>
+    // ===== A) 多語字典 =====
+    const i18n = {
+      zh: {
+        title: '華神生活地圖', sub: '點開分類查看子分類', footer: '© 2025- 華神生活地圖',
+        sections: {
+          food: '餐飲美食', medical:'診所醫院', life:'購物 / 生活服務', traffic:'汽機車養護與接送', fun:'育樂休閒'
+        },
+        subs: {
+          breakfast:'早餐', snacks:'小吃', world:'異國料理', late:'宵夜', cafe:'甜點咖啡', group:'聚餐地點',
+          hospital:'醫院', ped:'小兒科診所', dental:'牙醫診所', tcm:'中醫診所', multi:'骨科 / 內科 / 肝膽腸胃專科 / 皮膚科診所', ent_obgyn:'婦科 / 耳鼻喉科診所',
+          shopping:'購物雜物', idhair:'證件件照 / 剪燙髮',
+          vehicle:'汽機車養護與接送',
+          outdoor:'室外娛樂', indoor:'室內娛樂'
+        },
+        open:'開啟連結', pending:'待補連結'
+      },
+      en: {
+        title: 'CES Life Map', sub: 'Tap a category to view subcategories', footer: '© 2025- Huashen Life Map',
+        sections: {
+          food: 'Food & Dining', medical:'Clinics & Hospitals', life:'Shopping / Services', traffic:'Vehicles & Transport', fun:'Leisure & Recreation'
+        },
+        subs: {
+          breakfast:'Breakfast', snacks:'Street Food', world:'International', late:'Late-night', cafe:'Dessert & Coffee', group:'Group Dining',
+          hospital:'Hospitals', ped:'Pediatrics', dental:'Dentists', tcm:'Traditional Chinese Medicine', multi:'Ortho / Internal / GI / Derm', ent_obgyn:'OB-GYN / ENT',
+          shopping:'Groceries & Misc.', idhair:'ID Photos / Hair',
+          vehicle:'Vehicle Service / Pickup',
+          outdoor:'Outdoor Activities', indoor:'Indoor Activities'
+        },
+        open:'Open Link', pending:'To be added'
+      }
+    };
+
+    // ===== B) 子分類連結（用 ID 綁定，不受語言影響） =====
+    const linkMap = {
+      // Food
+      breakfast: "https://www.google.com/maps/d/edit?mid=1Dn-Elw9xNO0jl12dBu8LykNGmNtkvPQ&usp=share_link",
+      snacks: "https://www.google.com/maps/d/edit?mid=15sUZ-SaQ2FG1VU1gRUMPeYNHnvKisEo&usp=share_link",
+      world: "https://www.google.com/maps/d/edit?mid=1U5G05NKhZE8Fl4YhCKrJAzOHXYoEoE0&usp=share_link",
+      late: "https://www.google.com/maps/d/edit?mid=1rJr4esoAdf9o0Nh4IICIxKNvvYdE83A&usp=share_link",
+      cafe: "https://www.google.com/maps/d/edit?mid=1ybaOC7eV_UtgcGV37hhJbo7NMD5qTCI&usp=share_link",
+      group: "https://www.google.com/maps/d/edit?mid=192li1hudYbN_wiZu42g1oGyrJwEnvNE&usp=share_link",
+
+      // Medical
+      hospital: "https://www.google.com/maps/d/edit?mid=1aek7NtRUI3f4CIptPI_24ZWskf8hbwo&usp=share_link",
+      ped: "https://www.google.com/maps/d/edit?mid=1nmLjb-uRohGZY-6JxiFT2ecpJk0NjLk&usp=share_link",
+      dental: "https://www.google.com/maps/d/edit?mid=14TlcJXSASj2zx7xfHGo-oj6oBW1WEAQ&usp=share_link",
+      tcm: "https://www.google.com/maps/d/edit?mid=1UJtksqgwq4LbzPGh43Jt_5IIZ1rrUgg&usp=share_link",
+      multi: "https://www.google.com/maps/d/edit?mid=1EEDbmXgtvwadOAYOn820Hait_dlyFdA&usp=share_link",
+      ent_obgyn: "https://www.google.com/maps/d/edit?mid=14QQ7lL3bEOzejgBuO6hbTdEDSwymB9c&usp=share_link",
+
+      // Life
+      shopping: "https://www.google.com/maps/d/edit?mid=1k41PlsZQ0M2g6lUDWqX82TvSXHtJ4Rk&usp=share_link",
+      idhair: "https://www.google.com/maps/d/edit?mid=1O8y-XqAOKcHBeYJrKME1gxHejXX6WvA&usp=share_link",
+
+      // Traffic
+      vehicle: "https://www.google.com/maps/d/edit?mid=11FDAwLI64iwrzby1HgSGfyosY5Es3bU&usp=share_link",
+
+      // Fun
+      outdoor: "https://www.google.com/maps/d/edit?mid=1fdYEvBPvwmLzrxGxtQz03iThc5rpKVU&usp=share_link",
+      indoor: "https://www.google.com/maps/d/edit?mid=1O0rwhmYO4QKIyz9MxU9AtKLxzerW6Ng&usp=share_link"
+    };
+
+    // ===== C) 資料結構（用 ID） =====
+    const sections = [
+      { icon:'🍴', id:'food', subs:['breakfast','snacks','world','late','cafe','group'] },
+      { icon:'🏥', id:'medical', subs:['hospital','ped','dental','tcm','multi','ent_obgyn'] },
+      { icon:'🏪', id:'life', subs:['shopping','idhair'] },
+      { icon:'🚗', id:'traffic', subs:['vehicle'] },
+      { icon:'🎉', id:'fun', subs:['outdoor','indoor'] },
+    ];
+
+    // ===== D) 語言狀態 =====
+    const saved = localStorage.getItem('lang') || 'zh';
+    let lang = (saved === 'en' ? 'en' : 'zh');
+
+    // ===== E) 渲染 =====
+    const root = document.getElementById('accordion');
+    const t = (k, group='subs') => i18n[lang][group][k] || k;
+
+    function renderUI(){
+      // 標題/副標題/頁尾
+      document.getElementById('site-title').textContent = i18n[lang].title;
+      document.getElementById('site-sub').textContent = i18n[lang].sub;
+      document.getElementById('footer-text').textContent = i18n[lang].footer;
+      document.documentElement.lang = (lang==='zh' ? 'zh-Hant' : 'en');
+
+      // 按鈕狀態
+      document.getElementById('btn-zh').setAttribute('aria-pressed', lang==='zh');
+      document.getElementById('btn-en').setAttribute('aria-pressed', lang==='en');
+
+      // 內容
+      root.innerHTML = '';
+      sections.forEach(sec => {
+        const details = document.createElement('details');
+        const summary = document.createElement('summary');
+
+        const icon = document.createElement('div');
+        icon.className='sec-icon'; icon.textContent = sec.icon;
+
+        const title = document.createElement('div');
+        title.className='sec-title'; title.textContent = i18n[lang].sections[sec.id] || sec.id;
+
+        const chev = document.createElementNS('http://www.w3.org/2000/svg','svg');
+        chev.setAttribute('viewBox','0 0 24 24'); chev.setAttribute('width','20'); chev.setAttribute('height','20');
+        chev.classList.add('chev');
+        chev.innerHTML = '<path d="M8.12 4.12a1 1 0 0 1 1.41 0l6.35 6.35a1 1 0 0 1 0 1.41l-6.35 6.35a1 1 0 1 1-1.41-1.41L13.88 12 8.12 6.24a1 1 0 0 1 0-1.41z" fill="currentColor" />';
+
+        summary.append(icon, title, chev);
+
+        const subs = document.createElement('div');
+        subs.className='subs';
+        sec.subs.forEach(subId => {
+          const row = document.createElement('div'); row.className='subitem';
+          const left = document.createElement('div'); left.className='subname'; left.textContent = t(subId);
+
+          const url = linkMap[subId] || '';
+          let right;
+          if(url){
+            right = document.createElement('a');
+            right.className='link'; right.href=url; right.target='_blank'; right.rel='noopener';
+            right.textContent = i18n[lang].open;
+          }else{
+            right = document.createElement('span'); right.className='placeholder'; right.textContent = i18n[lang].pending;
+          }
+          row.append(left, right); subs.appendChild(row);
+        });
+
+        details.append(summary, subs); root.appendChild(details);
+      });
+    }
+
+    // ===== F) 切換邏輯 =====
+    document.getElementById('btn-zh').addEventListener('click', () => { lang='zh'; localStorage.setItem('lang', 'zh'); renderUI(); });
+    document.getElementById('btn-en').addEventListener('click', () => { lang='en'; localStorage.setItem('lang', 'en'); renderUI(); });
+
+    // 初始化
+    renderUI();
+  </script>
+</body>
+</html>
